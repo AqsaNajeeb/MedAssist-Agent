@@ -1,3 +1,4 @@
+import streamlit as st
 import os
 import csv
 import base64
@@ -8,9 +9,23 @@ from pathlib import Path
 from groq import Groq
 
 # =========================
-# GROQ SETUP
+# STREAMLIT CONFIG
+# =========================
+st.set_page_config(page_title="MedAssist AI 🏥", layout="wide")
+
+st.title("🏥 MedAssist AI Chatbot")
+st.caption("AI Medical Assistant powered by Groq + PubMed + Vision AI")
+
+
+# =========================
+# SAFE GROQ SETUP (FIXED)
 # =========================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+if not GROQ_API_KEY:
+    st.error("❌ GROQ_API_KEY not found. Add it in Streamlit Secrets.")
+    st.stop()
+
 client = Groq(api_key=GROQ_API_KEY)
 
 
@@ -27,7 +42,7 @@ def generate(prompt, system="You are a helpful medical assistant."):
 
 
 # =========================
-# LANGUAGE DETECTION
+# LANGUAGE DETECTION (UNCHANGED)
 # =========================
 def detect_language(text):
     for char in text:
@@ -49,7 +64,7 @@ def detect_language(text):
 
 
 # =========================
-# TASK CLASSIFICATION
+# TASK CLASSIFICATION (UNCHANGED)
 # =========================
 def classify_task(text):
     text_lower = text.lower()
@@ -78,22 +93,20 @@ def classify_task(text):
 
 
 # =========================
-# HANDLERS
+# HANDLERS (UNCHANGED)
 # =========================
 def lab_test_interpreter(user_input, language):
     system = "You are a medical assistant." if language == "ENGLISH" else "آپ ایک طبی معاون ہیں۔"
-    prompt = f"Interpret lab results:\n{user_input}"
-    return generate(prompt, system)
+    return generate(f"Interpret lab results:\n{user_input}", system)
 
 
 def terminology_explainer(user_input, language):
     system = "Explain simply." if language == "ENGLISH" else "سادہ اردو میں سمجھائیں۔"
-    prompt = f"Explain medical terms:\n{user_input}"
-    return generate(prompt, system)
+    return generate(f"Explain medical terms:\n{user_input}", system)
 
 
 # =========================
-# PUBMED
+# PUBMED (UNCHANGED)
 # =========================
 def search_pubmed(query, max_results=3):
     try:
@@ -134,12 +147,11 @@ PubMed research:
 
 Summarize in simple terms.
 """
-    system = "Medical research assistant"
-    return generate(prompt, system)
+    return generate(prompt, "Medical research assistant")
 
 
 # =========================
-# IMAGE ANALYSIS
+# IMAGE ANALYSIS (FIXED LOGIC)
 # =========================
 def encode_image(image_path):
     with open(image_path, "rb") as f:
@@ -152,11 +164,11 @@ def analyze_image(image_path, language):
 
     image_data = encode_image(image_path)
 
-    prompt = "Analyze this medical image simply."
-    system = "Medical image assistant"
-
+    prompt = "Analyze this medical image."
+    
+    # FIX: Groq vision requires supported vision model
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
         messages=[{
             "role": "user",
             "content": [
@@ -177,15 +189,6 @@ def analyze_image(image_path, language):
 # =========================
 LOG_FILE = "medassist_log.csv"
 
-
-def init_log():
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow(
-                ["timestamp", "input", "language", "task", "result"]
-            )
-
-
 def save_log(user_input, language, task, result):
     with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow([
@@ -197,4 +200,82 @@ def save_log(user_input, language, task, result):
         ])
 
 
-init_log()
+# =========================
+# SESSION STATE
+# =========================
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+
+# =========================
+# SIDEBAR
+# =========================
+mode = st.sidebar.radio("Choose Mode", ["💬 Chat", "🖼️ Image Analysis"])
+
+if st.sidebar.button("Clear Chat"):
+    st.session_state.messages = []
+
+
+# =========================
+# CHAT MODE
+# =========================
+if mode == "💬 Chat":
+
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    user_input = st.chat_input("Ask your medical question...")
+
+    if user_input:
+
+        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        language = detect_language(user_input)
+        task = classify_task(user_input)
+
+        if task == "LAB_TEST":
+            result = lab_test_interpreter(user_input, language)
+        elif task == "TERMINOLOGY":
+            result = terminology_explainer(user_input, language)
+        else:
+            result = literature_analyzer(user_input, language)
+
+        save_log(user_input, language, task, result)
+
+        st.session_state.messages.append({"role": "assistant", "content": result})
+
+
+# =========================
+# IMAGE MODE
+# =========================
+else:
+
+    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+    question = st.text_input("Optional question")
+
+    if uploaded_file:
+
+        temp_path = f"temp_{uploaded_file.name}"
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.read())
+
+        st.image(temp_path)
+
+        if st.button("Analyze"):
+
+            language = detect_language(question) if question else "ENGLISH"
+
+            result = analyze_image(temp_path, language)
+
+            st.write(result)
+
+            save_log(
+                f"[IMAGE] {uploaded_file.name}",
+                language,
+                "IMAGE",
+                result
+            )
+
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
