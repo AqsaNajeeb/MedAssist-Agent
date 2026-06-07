@@ -471,16 +471,16 @@ The system was evaluated using six representative healthcare scenarios.
 
 # 📈 Comparative Analysis
 
-| Feature | Lab2Life | DrugAgent | MedAssist Agent |
+| Feature | Lab2Life  | MedAssist Agent |
 |----------|-----------|-----------|-----------|
-| Lab Test Interpretation | ✅ | ❌ | ✅ |
-| Terminology Simplification | Partial | ❌ | ✅ |
-| PubMed Literature Analysis | ❌ | ✅ | ✅ |
-| Urdu Language Support | ❌ | ❌ | ✅ |
-| Medical Image Analysis | OCR Only | ❌ | ✅ |
-| Patient-Facing Interface | ✅ | ❌ | ✅ |
-| Unified Pipeline | ❌ | Partial | ✅ |
-| Multimodal AI | ❌ | ❌ | ✅ |
+| Lab Test Interpretation | ✅  | ✅ |
+| Terminology Simplification | Partial  | ✅ |
+| PubMed Literature Analysis | ❌  | ✅ |
+| Urdu Language Support | ❌ |  ✅ |
+| Medical Image Analysis | OCR Only  | ✅ |
+| Patient-Facing Interface | ✅  | ✅ |
+| Unified Pipeline | ❌  | ✅ |
+| Multimodal AI | ❌ |  ✅ |
 
 ---
 
