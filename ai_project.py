@@ -26,7 +26,7 @@ if not GROQ_API_KEY:
     st.error("❌ GROQ_API_KEY not found. Add it in Streamlit Secrets.")
     st.stop()
 
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+client = Groq(api_key=GROQ_API_KEY)
 
 def generate(prompt, system="You are a helpful medical assistant."):
     response = client.chat.completions.create(
